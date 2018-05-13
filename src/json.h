@@ -11,6 +11,8 @@
 #include <charconv>
 
 
+namespace Om {
+
 inline std::string json_escape_string(std::string_view strv) {
 	static char escape_chars[] = {
 		'"',
@@ -273,3 +275,5 @@ private:
 	int m_indent_level = 0;
 	StreamT& m_stream;
 };
+
+}

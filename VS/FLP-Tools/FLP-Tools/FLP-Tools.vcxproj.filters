@@ -11,39 +11,48 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\win32.h">
+    <ClInclude Include="..\..\..\src\flp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\argparse.h">
+    <ClInclude Include="..\..\..\src\flp_enums.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\cfile.h">
+    <ClInclude Include="..\..\..\src\flp_stream.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\flp_enums.h">
+    <ClInclude Include="..\..\..\src\json.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\flp_stream.h">
+    <ClInclude Include="..\..\..\src\result.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\json.h">
+    <ClInclude Include="..\..\..\src\type_defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\type_defs.h">
+    <ClInclude Include="..\..\..\src\utf_conversions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\version.h">
+    <ClInclude Include="..\..\..\src\version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\flp.h">
+    <ClInclude Include="..\..\..\src\win32.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\argparse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\cfile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\flptools.cpp">
+    <ClCompile Include="..\..\..\src\utf_conversions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\..\VSProjects\FLP Show\FLP Show\flp_enums.cpp">
+    <ClCompile Include="..\..\..\src\flp_enums.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\flptools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

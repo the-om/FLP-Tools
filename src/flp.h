@@ -11,7 +11,7 @@ struct FLPEvent {
 		uint8 u8;
 		int16 i16;
 		int32 i32;
-		size var_size;
+		usize var_size;
 	};
 
 	std::unique_ptr<byte const[]> text_data;

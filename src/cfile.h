@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #include <cassert>
 #include <cstdio>
 #include <vector>

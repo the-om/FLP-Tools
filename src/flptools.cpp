@@ -1,16 +1,12 @@
-﻿#include <fstream>    // ifstream, ofstream
-#include <string>     // wstring
-#include <iostream>   // getline, wcout
-#include <sstream>    // ostringstream
+﻿#include <iostream>   // cerr, cout
 #include <filesystem> // path
-#include <chrono>
+#include <chrono>     // high_resolution_clock
 
 #include "argparse.h"
 #include "flp_stream.h"
 #include "version.h"
 #include "json.h"
 #include "cfile.h"
-//#include "deserialized_flp.h"
 
 
 enum class Mode {
@@ -87,7 +83,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
 	auto begin_time = clock::now();
 
-	JSONOutStream<Om::CFile> json_stream(outfile);
+	Om::JSONOutStream<Om::CFile> json_stream(outfile);
 	json_stream.begin_object();
 	json_stream.key("header");
 	stream_flp_header(json_stream, flp.file_header());
@@ -117,13 +113,6 @@ int wmain(int argc, wchar_t* argv[]) {
 	json_stream.end_array();
 	json_stream.end_object();
 	json_stream.flush();
-
-	//if(flp.file_header_chunk.Format == FLPFormat::FLP_Format_Song) {
-	//	auto dflp = DeserializedFLP::from_events(
-	//		begin(flp.data.events),
-	//		end(flp.data.events)
-	//	);
-	//}+
 
 	auto end_time = clock::now();
 	std::cout << "elapsed time: " << duration_cast<microseconds>(end_time - begin_time).count() << "us\n";

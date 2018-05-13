@@ -8,8 +8,7 @@
 #include <system_error>  // system_error
 #include <utility>       // forward
 
-#include "win32.h"
-#include <omlib/win32/helpers.h> // utf conversion, TODO: replace by platform independent code
+#include "utf_conversions.h"
 
 
 template<typename StreamType>
@@ -168,7 +167,7 @@ namespace detail {
 		auto const* data = reinterpret_cast<unsigned char const*>(e.text_data.get());
 
 		assert(e.var_size != 0);
-		for(size i = 0; i < e.var_size; ++i) {
+		for(usize i = 0; i < e.var_size; ++i) {
 			if(data[i] == 0) {
 				continue;
 			}
@@ -291,7 +290,7 @@ namespace detail {
 			// FLP_Text_* is a UTF16 string from FL12 on
 			auto wstr = reinterpret_cast<wchar_t const*>(e.text_data.get());
 			std::size_t const len = e.var_size / 2 - 1;
-			if(auto sutf8 = Om::win32::utf16_to_utf8(std::wstring_view(wstr, len)))
+			if(auto sutf8 = Om::utf16_to_utf8(std::wstring_view(wstr, len)))
 				stream.value(sutf8.get());
 			else
 				throw std::system_error(sutf8.get_error());

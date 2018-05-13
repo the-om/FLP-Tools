@@ -36,5 +36,5 @@ using intptr = std::intptr_t;
 using uintptr = std::uintptr_t;
 using ptrdiff = std::ptrdiff_t;
 
-using size = std::size_t;
+using usize = std::size_t;
 using byte = std::byte;
