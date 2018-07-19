@@ -17,7 +17,6 @@ struct FLPInStream {
 	template<typename... Args>
 	FLPInStream(Args&&... args) :
 		_stream(std::forward<Args>(args)...) {
-
 	}
 
 	void read_header() {
