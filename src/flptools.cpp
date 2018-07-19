@@ -1,4 +1,4 @@
-﻿#include <iostream>   // cerr, cout
+﻿#include <cstdio>
 #include <filesystem> // path
 #include <chrono>     // high_resolution_clock
 
@@ -33,13 +33,12 @@ std::function<void(wchar_t const*)> write_path_arg(std::filesystem::path& p) {
 struct CFileInStream : public Om::CFile {
 	CFileInStream(FILE* fptr) : Om::CFile(fptr) {}
 
-	static std::string errmsg(int er) {
+	static char const* errmsg(int er) {
 		return { std::strerror(er) };
 	}
 };
 
 int wmain(int argc, wchar_t* argv[]) {
-	std::cout << "FLP-Show\n\n";
 	std::ios_base::sync_with_stdio(false);
 
 	Om::ArgHandlerMap<wchar_t> const arg_handlers = {
@@ -59,7 +58,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
 	FILE* f = _wfopen(program_args.input_path.c_str(), L"rb");
 	if(f == nullptr) {
-		std::cerr << "Could not open input file! - Exiting\n";
+		std::fputs("Could not open input file! - Exiting\n", stderr);
 		return EXIT_FAILURE;
 	}
 	FLPInStream<CFileInStream> flp(f);
@@ -69,12 +68,14 @@ int wmain(int argc, wchar_t* argv[]) {
 	if(program_args.output_path.empty()) {
 		if(program_args.mode == Mode::flp_to_json) {
 			program_args.output_path = program_args.input_path;
-			program_args.output_path.replace_filename(program_args.input_path.filename().wstring() + L".json");
+			program_args.output_path.replace_filename(
+				program_args.input_path.filename().wstring() + L".json"
+			);
 		}
 	}
 	Om::CFile outfile(_wfopen(program_args.output_path.c_str(), L"wb"));
 	if(!outfile.is_open()) {
-		std::cerr << "Could not open output file! - Exiting\n";
+		std::fputs("Could not open output file! - Exiting\n", stderr);
 		return EXIT_FAILURE;
 	}
 
@@ -103,19 +104,19 @@ int wmain(int argc, wchar_t* argv[]) {
 		}
 		++flp;
 	}
-	if(is_unicode) {
+	if(is_unicode)
 		for(; flp.has_event(); ++flp)
 			stream_flp_event<true>(json_stream, *flp);
-	} else {
+	else
 		for(; flp.has_event(); ++flp)
 			stream_flp_event<false>(json_stream, *flp);
-	}
+
 	json_stream.end_array();
 	json_stream.end_object();
 	json_stream.flush();
 
 	auto end_time = clock::now();
-	std::cout << "elapsed time: " << duration_cast<microseconds>(end_time - begin_time).count() << "us\n";
+	std::fprintf(stderr, "elapsed time: %lldus\n", duration_cast<microseconds>(end_time - begin_time).count());
 
 	return EXIT_SUCCESS;
 }

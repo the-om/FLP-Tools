@@ -1,19 +1,32 @@
 #include "flp_enums.h"
-#include <unordered_map>
 
 
-static std::unordered_map<FLPFormat, char const* const> const header_format_names = {
-	{ FLPFormat::FLP_Format_None,          "FLP_Format_None" },
-	{ FLPFormat::FLP_Format_Song,          "FLP_Format_Song" },
-	{ FLPFormat::FLP_Format_Score,         "FLP_Format_Score" },
-	{ FLPFormat::FLP_Format_Auto,          "FLP_Format_Auto" },
-	{ FLPFormat::FLP_Format_ChanState,     "FLP_Format_ChanState" },
-	{ FLPFormat::FLP_Format_PlugState,     "FLP_Format_PlugState" },
-	{ FLPFormat::FLP_Format_PlugState_Gen, "FLP_Format_PlugState_Gen" },
-	{ FLPFormat::FLP_Format_PlugState_FX,  "FLP_Format_PlugState_FX" },
-	{ FLPFormat::FLP_Format_MixerState,    "FLP_Format_MixerState" },
-	{ FLPFormat::FLP_Format_Patcher,       "FLP_Format_Patcher" }
-};
+char const* header_format_name(FLPFormat hf) noexcept {
+	switch(hf) {
+	case FLPFormat::FLP_Format_None:
+		return "FLP_Format_None";
+	case FLPFormat::FLP_Format_Song:
+		return "FLP_Format_Song";
+	case FLPFormat::FLP_Format_Score:
+		return "FLP_Format_Score";
+	case FLPFormat::FLP_Format_Auto:
+		return "FLP_Format_Auto";
+	case FLPFormat::FLP_Format_ChanState:
+		return "FLP_Format_ChanState";
+	case FLPFormat::FLP_Format_PlugState:
+		return "FLP_Format_PlugState";
+	case FLPFormat::FLP_Format_PlugState_Gen:
+		return "FLP_Format_PlugState_Gen";
+	case FLPFormat::FLP_Format_PlugState_FX:
+		return "FLP_Format_PlugState_FX";
+	case FLPFormat::FLP_Format_MixerState:
+		return "FLP_Format_MixerState";
+	case FLPFormat::FLP_Format_Patcher:
+		return "FLP_Format_Patcher";
+	default:
+		return nullptr;
+	}
+}
 
 static constexpr char const* const event_names[256] = {
 	// 0 "FLP_Byte"
@@ -214,10 +227,6 @@ static constexpr char const* const event_names[256] = {
 	"FLP_PLTrackInfo",
 	"FLP_Text_PLTrackName",
 };
-
-char const* header_format_name(FLPFormat hf) noexcept {
-	return header_format_names.at(hf);
-}
 
 char const* flp_event_name(std::underlying_type_t<FLPEventType> event_id) noexcept {
 	return event_names[event_id];
