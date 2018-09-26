@@ -9,8 +9,9 @@
 class Version {
 public:
 	Version(char const* ver_str) {
+		v.reserve(4);
 		char const* p = ver_str;
-		while(true) {
+		for(;;) {
 			char* end;
 			unsigned long const n = std::strtoul(p, &end, 10);
 			if(n != ULONG_MAX) {

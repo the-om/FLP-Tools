@@ -65,10 +65,16 @@ static constexpr char const* const event_names[256] = {
 	"FLP_APDC",
 	"FLP_TruncateClipNotes",
 	"FLP_EEAutoMode",
-	//32
-	// TODO: event 32 is used in FL 12
-	nullptr, nullptr, nullptr, nullptr,
-	nullptr, nullptr, nullptr, nullptr,
+	// 32
+	nullptr,  // TODO: event 32 is used since FL 12
+	nullptr,
+	nullptr,
+	nullptr,  // TODO: event 35 is used since FL 20
+	nullptr,  // TODO: event 36 is used since FL 20
+	nullptr,  // TODO: event 37 is used since FL 20
+	nullptr,
+	nullptr,
+	// 40
 	nullptr, nullptr, nullptr, nullptr,
 	nullptr, nullptr, nullptr, nullptr,
 	nullptr, nullptr, nullptr, nullptr,
@@ -115,8 +121,8 @@ static constexpr char const* const event_names[256] = {
 	"FLP_DotRel",
 	"FLP_SwingMix",
 	"FLP_FXInsertIndex",
-	nullptr,
-	nullptr,
+	nullptr,  // TODO: event 99 is used since FL 20
+	nullptr,  // TODO: event 100 is used since FL 20
 	nullptr,
 	nullptr,
 	nullptr,
@@ -160,9 +166,9 @@ static constexpr char const* const event_names[256] = {
 	"FLP_FXInChanNum",
 	"FLP_PluginIcon",
 	"FLP_FineTempo",
-	nullptr, // TODO: event 157 is used in FL 12
-	nullptr,
-	nullptr,
+	nullptr, // TODO: event 157 is used since FL 12
+	nullptr, // TODO: event 158 is used since FL 20
+	nullptr, // TODO: event 159 is used since FL 20
 	// 160
 	nullptr, nullptr, nullptr, nullptr,
 	nullptr, nullptr, nullptr, nullptr,
@@ -226,6 +232,16 @@ static constexpr char const* const event_names[256] = {
 	"FLP_ProjectTime",
 	"FLP_PLTrackInfo",
 	"FLP_Text_PLTrackName",
+	// 240
+	nullptr,
+	nullptr,  // TODO: event 241 is used since FL 20
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	// 248
 };
 
 char const* flp_event_name(std::underlying_type_t<FLPEventType> event_id) noexcept {

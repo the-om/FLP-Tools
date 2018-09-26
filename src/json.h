@@ -79,9 +79,15 @@ inline std::string json_escape_string(std::string_view strv) {
 template<typename StreamT>
 class JSONOutStream {
 public:
-	JSONOutStream(StreamT& underlying) : m_stream(underlying) {
-		m_position = &m_buffer[0];
+	JSONOutStream(StreamT& underlying) :
+		m_stream { underlying },
+		m_position { &m_buffer[0] } {
 	}
+
+	JSONOutStream(JSONOutStream const&) = delete;
+	JSONOutStream& operator=(JSONOutStream const&) = delete;
+	JSONOutStream(JSONOutStream&&) = delete;
+	JSONOutStream& operator=(JSONOutStream&&) = delete;
 
 	~JSONOutStream() {
 		assert(m_agg_stack.empty());
@@ -273,6 +279,22 @@ private:
 	char* m_position;
 	std::stack<StackEntry, std::vector<StackEntry>> m_agg_stack;
 	int m_indent_level = 0;
+	StreamT& m_stream;
+};
+
+template<typename StreamT>
+class JSONInStream {
+	JSONInStream(StreamT underlying) :
+		m_stream { underlying } {
+	}
+
+	JSONInStream(JSONInStream const&) = delete;
+	JSONInStream& operator=(JSONInStream const&) = delete;
+	JSONInStream(JSONInStream&&) = delete;
+	JSONInStream& operator=(JSONInStream&&) = delete;
+
+
+
 	StreamT& m_stream;
 };
 

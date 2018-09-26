@@ -40,7 +40,7 @@ constexpr wchar_t nulchar<wchar_t>() {
 }
 
 template<typename ArT>
-using array_elem_t = typename std::remove_cv<std::remove_pointer_t<std::decay_t<ArT>>>::type;
+using array_elem_t = std::remove_cv_t<std::remove_pointer_t<std::decay_t<ArT>>>;
 
 template<typename CharT, std::size_t PrefLen>
 CharT* matches_prefix(CharT* s, CharT const (&prefix)[PrefLen]) {
@@ -87,17 +87,17 @@ void parse_args(int argc, CharT** argv, ArgHandlerMap<CharT> const& arg_handlers
 	              "ParseOptions prefixes must be arrays");
 
 	static_assert(std::is_same<
-	                  std::remove_const<CharT>::type, array_elem_t<decltype(PrsOpt::short_prefix)>
+	                  std::remove_const_t<CharT>, array_elem_t<decltype(PrsOpt::short_prefix)>
 	              >::value &&
 	              std::is_same<
-	                  std::remove_const<CharT>::type, array_elem_t<decltype(PrsOpt::long_prefix)>
+	                  std::remove_const_t<CharT>, array_elem_t<decltype(PrsOpt::long_prefix)>
 	              >::value, "ParseOptions prefixes char types must be the same as CharT");
 
 	assert(argc >= 1);
 	assert(argv);
 
 	auto end = arg_handlers.end();
-	typename std::remove_reference_t<decltype(arg_handlers)>::const_iterator it;
+	typename ArgHandlerMap<CharT>::const_iterator it;
 
 	int i = 1;
 
@@ -144,7 +144,7 @@ handle_last:
 	if(it != end) {
 		it->second(argv[i]);
 	} else {
-		throw std::runtime_error{"no handler for last arg"};
+		throw std::runtime_error{"no handler for last argument"};
 	}
 
 the_end:

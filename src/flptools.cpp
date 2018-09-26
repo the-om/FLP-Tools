@@ -1,4 +1,4 @@
-﻿#include <cstdio>
+﻿#include <cstdio>     // fputs, fprintf
 #include <filesystem> // path
 #include <chrono>     // high_resolution_clock
 
@@ -15,20 +15,11 @@ enum class Mode {
 	json_to_flp
 };
 
-struct ProgramArgs {
+struct ProgramOptions {
 	std::filesystem::path input_path {};
 	std::filesystem::path output_path {};
 	Mode mode = Mode::not_set;
 };
-
-std::function<void(wchar_t const*)> write_path_arg(std::filesystem::path& p) {
-	return [&p] (wchar_t const* arg) {
-		if(arg)
-			p = arg;
-		else
-			throw std::runtime_error("missing argument");
-	};
-}
 
 struct CFileInStream : public Om::CFile {
 	CFileInStream(FILE* fptr) : Om::CFile(fptr) {}
@@ -38,7 +29,7 @@ struct CFileInStream : public Om::CFile {
 	}
 };
 
-bool flp_to_json(ProgramArgs const& program_args) {
+static bool flp_to_json(ProgramOptions const& program_args) {
 	FILE* f = _wfopen(program_args.input_path.c_str(), L"rb");
 	if(f == nullptr) {
 		std::fputs("Could not open input file! - Exiting\n", stderr);
@@ -83,21 +74,29 @@ bool flp_to_json(ProgramArgs const& program_args) {
 
 	json_stream.end_array();
 	json_stream.end_object();
-	json_stream.flush();
 
 	return true;
 }
 
-int wmain(int argc, wchar_t* argv[]) {
-	std::ios_base::sync_with_stdio(false);
+static ProgramOptions get_program_options(int argc, wchar_t* argv[]) {
 
-	ProgramArgs program_args {};
+	auto write_path_arg = [](std::filesystem::path& p) -> std::function<void(wchar_t const*)> {
+		return [&p] (wchar_t const* arg) {
+			if(arg)
+				p = arg;
+			else
+				throw std::runtime_error("missing argument");
+		};
+	};
+
+	ProgramOptions program_args {};
 	Om::ArgHandlerMap<wchar_t> const arg_handlers = {
 		{L"o", write_path_arg(program_args.output_path)},
 		{L"",  write_path_arg(program_args.input_path) }
 	};
 
 	Om::parse_args<wchar_t>(argc, argv, arg_handlers);
+
 	if(program_args.mode == Mode::not_set) {
 		auto input_ext = program_args.input_path.extension();
 		if(input_ext == L"json") {
@@ -107,8 +106,8 @@ int wmain(int argc, wchar_t* argv[]) {
 		}
 	}
 
-	if(program_args.output_path.empty()) {
-		if(program_args.mode == Mode::flp_to_json) {
+	if(program_args.mode == Mode::flp_to_json) {
+		if(program_args.output_path.empty()) {
 			program_args.output_path = program_args.input_path;
 			program_args.output_path.replace_filename(
 				program_args.input_path.filename().wstring() + L".json"
@@ -116,8 +115,14 @@ int wmain(int argc, wchar_t* argv[]) {
 		}
 	}
 
-	std::fprintf(stderr, "Input file: %ls\n", program_args.input_path.c_str());
-	std::fprintf(stderr, "Output file: %ls\n", program_args.output_path.c_str());
+	return program_args;
+}
+
+int wmain(int argc, wchar_t* argv[]) {
+	ProgramOptions program_args = get_program_options(argc, argv);
+
+	std::printf("Input file: %ls\n", program_args.input_path.c_str());
+	std::printf("Output file: %ls\n", program_args.output_path.c_str());
 
 	using namespace std::chrono;
 	using clock = high_resolution_clock;
@@ -128,7 +133,7 @@ int wmain(int argc, wchar_t* argv[]) {
 		return EXIT_FAILURE;
 
 	auto end_time = clock::now();
-	std::fprintf(stderr, "elapsed time: %lldus\n", duration_cast<microseconds>(end_time - begin_time).count());
+	std::printf("elapsed time: %lldus\n", duration_cast<microseconds>(end_time - begin_time).count());
 
 	return EXIT_SUCCESS;
 }
