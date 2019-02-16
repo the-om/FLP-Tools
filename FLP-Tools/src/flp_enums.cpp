@@ -1,7 +1,9 @@
 #include "flp_enums.h"
 
 
-char const* header_format_name(FLPFormat hf) noexcept {
+using namespace Om;
+
+char const* Om::header_format_name(FLPFormat hf) noexcept {
 	switch(hf) {
 	case FLPFormat::FLP_Format_None:
 		return "FLP_Format_None";
@@ -244,6 +246,6 @@ static constexpr char const* const event_names[256] = {
 	// 248
 };
 
-char const* flp_event_name(std::underlying_type_t<FLPEventType> event_id) noexcept {
+char const* Om::flp_event_name(std::uint8_t event_id) noexcept {
 	return event_names[event_id];
 };

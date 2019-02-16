@@ -2,12 +2,15 @@
 #include <filesystem> // path
 #include <chrono>     // high_resolution_clock
 
-#include "argparse.h"
 #include "flp_stream.h"
+
+#include "argparse.h"
 #include "version.h"
 #include "json.h"
 #include "cfile.h"
 
+
+using namespace Om;
 
 enum class Mode {
 	not_set,
@@ -79,13 +82,11 @@ static bool flp_to_json(ProgramOptions const& program_args) {
 }
 
 static ProgramOptions get_program_options(int argc, wchar_t* argv[]) {
-
 	auto write_path_arg = [](std::filesystem::path& p) -> std::function<void(wchar_t const*)> {
 		return [&p] (wchar_t const* arg) {
-			if(arg)
-				p = arg;
-			else
+			if(arg == nullptr)
 				throw std::runtime_error("missing argument");
+			p = arg;
 		};
 	};
 

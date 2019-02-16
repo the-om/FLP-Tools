@@ -1,6 +1,7 @@
 #pragma once
 
 #include "flp.h"
+#include "flp_utf_conversions.h"
 
 #include <cassert>       // assert
 #include <vector>        // vector
@@ -8,8 +9,8 @@
 #include <system_error>  // system_error
 #include <utility>       // forward
 
-#include "utf_conversions.h"
 
+namespace Om {
 
 template<typename StreamType>
 struct FLPInStream {
@@ -52,30 +53,30 @@ struct FLPInStream {
 		case 0:
 			if(!_stream.read(&_current_event.u8))
 				failed_read(_stream);
-			_data_bytes_read += sizeof(uint8);
+			_data_bytes_read += sizeof(std::uint8_t);
 			break;
 		case 1:
 			if(!_stream.read(&_current_event.i16))
 				failed_read(_stream);
-			_data_bytes_read += sizeof(int16);
+			_data_bytes_read += sizeof(std::int16_t);
 			break;
 		case 2:
 			if(!_stream.read(&_current_event.i32))
 				failed_read(_stream);
-			_data_bytes_read += sizeof(int32);
+			_data_bytes_read += sizeof(std::int32_t);
 			break;
 		case 3:
 		{ // TEXT event
-			uint32 text_size = 0;
-			uint8 current_byte;
-			uint32 shift_by = 0;
+			std::uint32_t text_size = 0;
+			std::uint8_t current_byte;
+			std::uint32_t shift_by = 0;
 			do { // extract size
 				 // left shift by more is undefined behaviour
 				assert(shift_by < sizeof(shift_by) * CHAR_BIT);
 				if(!_stream.read(&current_byte))
 					failed_read(_stream);
 				_data_bytes_read += 1;
-				text_size += ((current_byte & uint8(0x7FU)) << shift_by);
+				text_size += ((current_byte & std::uint8_t(0x7FU)) << shift_by);
 				shift_by += 7;
 			} while(current_byte & 0x80U);
 
@@ -84,7 +85,7 @@ struct FLPInStream {
 			if(text_size == 0) {
 				_current_event.text_data = nullptr;
 			} else {
-				auto up_buffer = std::make_unique<byte[]>(text_size);
+				auto up_buffer = std::make_unique<std::byte[]>(text_size);
 				if(_stream.read(up_buffer.get(), text_size) != text_size)
 					failed_read(_stream);
 				_data_bytes_read += text_size;
@@ -116,9 +117,9 @@ private:
 		throw std::runtime_error(errstr);
 	}
 
-	static bool check_chunkID(uint32 id, char const (&p)[5]) noexcept {
+	static bool check_chunkID(std::uint32_t id, char const (&p)[5]) noexcept {
 		assert(strlen(p) == 4);
-		uint32 composit = p[0];
+		std::uint32_t composit = p[0];
 		composit |= (p[1] << 8);
 		composit |= (p[2] << 16);
 		composit |= (p[3] << 24);
@@ -128,7 +129,7 @@ private:
 	StreamType _stream {};
 	FLPFileHeader _file_header {};
 	FLPChunkHeader _data_header {};
-	uint32 _data_bytes_read = 0;
+	std::uint32_t _data_bytes_read = 0;
 	FLPEvent _current_event {};
 };
 
@@ -145,7 +146,7 @@ void stream_flp_header(StreamT& stream, FLPFileHeader const& header) {
 }
 
 namespace detail {
-	inline char get_nibble_char(byte nibble) {
+	inline char get_nibble_char(std::byte nibble) {
 		auto nbval = static_cast<unsigned char>(nibble);
 		if(nbval < 0xA) {
 			return nbval + '0';
@@ -166,7 +167,7 @@ namespace detail {
 		auto const* data = reinterpret_cast<unsigned char const*>(e.text_data.get());
 
 		assert(e.var_size != 0);
-		for(usize i = 0; i < e.var_size; ++i) {
+		for(std::size_t i = 0; i < e.var_size; ++i) {
 			if(data[i] == 0) {
 				continue;
 			}
@@ -255,23 +256,22 @@ namespace detail {
 		if(required_bufsz > std::size(local_buf)) {
 			large_buf.reset(new char[required_bufsz]);
 			buf = large_buf.get();
-			//printf("used large buffer! size: %zu\n", required_bufsz);
 		} else {
 			buf = local_buf;
 		}
-		byte const* data = e.text_data.get();
-		byte bt;
+		std::byte const* data = e.text_data.get();
+		std::byte bt;
 		char* p = buf;
 		for(auto i = 0U; i < e.var_size - 1; i++) {
 			bt = data[i];
-			p[0] = detail::get_nibble_char((bt & byte { 0xF0 }) >> 4);
-			p[1] = detail::get_nibble_char(bt & byte { 0x0F });
+			p[0] = detail::get_nibble_char((bt & std::byte { 0xF0 }) >> 4);
+			p[1] = detail::get_nibble_char(bt & std::byte { 0x0F });
 			p[2] = ' ';
 			p += 3;
 		}
 		bt = data[e.var_size - 1];
-		p[0] = detail::get_nibble_char((bt & byte { 0xF0 }) >> 4);
-		p[1] = detail::get_nibble_char(bt & byte { 0x0F });
+		p[0] = detail::get_nibble_char((bt & std::byte { 0xF0 }) >> 4);
+		p[1] = detail::get_nibble_char(bt & std::byte { 0x0F });
 
 		stream.value_str_noescape(std::string_view(buf, required_bufsz));
 	}
@@ -289,10 +289,11 @@ namespace detail {
 			// FLP_Text_* is a UTF16 string from FL12 on
 			auto wstr = reinterpret_cast<wchar_t const*>(e.text_data.get());
 			std::size_t const len = e.var_size / 2 - 1;
-			if(auto sutf8 = Om::utf16_to_utf8(std::wstring_view(wstr, len)))
-				stream.value(sutf8.get());
+			std::string sutf8;
+			if(std::error_code err = Om::utf16_to_utf8(std::wstring_view(wstr, len), &sutf8))
+				throw std::system_error(err);
 			else
-				throw std::system_error(sutf8.get_error());
+				stream.value(sutf8);
 		} else {
 			stream.value(e.var_size - 1);
 			stream.key("data");
@@ -314,8 +315,8 @@ void stream_flp_event(StreamT& stream, FLPEvent const& e) {
 		char id_buffer[48];
 		char const* event_name = flp_event_name(e.type);
 		int len = std::snprintf(id_buffer, sizeof(id_buffer), "%u/%s",
-			static_cast<unsigned>(event_id),
-			(event_name ? event_name : "Unknown"));
+		                        static_cast<unsigned>(event_id),
+		                        (event_name ? event_name : "Unknown"));
 		stream.value_str_noescape(std::string_view(id_buffer, len));
 	}
 
@@ -377,4 +378,6 @@ void stream_flp_event(StreamT& stream, FLPEvent const& e) {
 	}
 
 	stream.end_object();
+}
+
 }

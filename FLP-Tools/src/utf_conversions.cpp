@@ -1,15 +1,19 @@
-#include "utf_conversions.h"
-#include "win32.h"
+#include "flp_utf_conversions.h"
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
 
 
 namespace Om {
 
-Om::Result<std::string> utf16_to_utf8(std::wstring_view strv) {
-	if(strv.size() >= std::size_t(INT_MAX)) {
-		return { std::make_error_code(std::errc::invalid_argument) };
+
+std::error_code utf16_to_utf8(std::wstring_view strv16, std::string* out_strutf8) {
+	if(strv16.size() >= std::size_t(INT_MAX)) {
+		return std::make_error_code(std::errc::invalid_argument);
 	}
-	wchar_t const* const wstr = strv.data();
-	int const isize = static_cast<int>(strv.size());
+	wchar_t const* const wstr = strv16.data();
+	int const isize = static_cast<int>(strv16.size());
 	if(isize == 0) {
 		return {};
 	}
@@ -39,7 +43,8 @@ Om::Result<std::string> utf16_to_utf8(std::wstring_view strv) {
 
 	utf8_str.resize(chars_written);
 
-	return { std::move(utf8_str) };
+	*out_strutf8 = std::move(utf8_str);
+	return std::error_code();
 }
 
 }

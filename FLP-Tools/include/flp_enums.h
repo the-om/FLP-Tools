@@ -1,10 +1,10 @@
 #pragma once
 
-#include "type_defs.h"
-#include <type_traits>
+#include <cstdint>
 
+namespace Om {
 
-enum class FLPFormat : int16 {
+enum class FLPFormat : std::int16_t {
 	FLP_Format_None          = -1,                    // temporary
 	FLP_Format_Song          = 0,                     // full project
 	FLP_Format_Score         = 0x10,                  // score
@@ -41,7 +41,7 @@ enum class PluginFlags {
 	Plug_EditorFlags  = Plug_Visible | Plug_Detached | Plug_Maximized | Plug_HideSettings | Plug_Captionized
 };
 
-enum class FLPEventType : uint8 {
+enum class FLPEventType : std::uint8_t {
 	FLP_Byte              = 0,
 	FLP_ChanEnabled       = 0,
 	FLP_NoteOn            = 1,  // +pos
@@ -201,8 +201,11 @@ enum class FLPEventType : uint8 {
 };
 
 char const* header_format_name(FLPFormat hf) noexcept;
-char const* flp_event_name(std::underlying_type_t<FLPEventType> event_id) noexcept;
+char const* flp_event_name(std::uint8_t event_id) noexcept;
 
 inline char const* flp_event_name(FLPEventType event_type) noexcept {
-	return flp_event_name(static_cast<std::underlying_type_t<FLPEventType>>(event_type));
+	return flp_event_name(static_cast<std::uint8_t>(event_type));
+}
+
+
 }
