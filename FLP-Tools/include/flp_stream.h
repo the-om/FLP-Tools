@@ -6,40 +6,39 @@
 #include <cassert>       // assert
 #include <vector>        // vector
 #include <string_view>   // string_view, wstring_view, std::size
-#include <system_error>  // system_error
+#include <stdexcept>     // runtime_error
 #include <utility>       // forward
 
 
 namespace Om {
 
 template<typename StreamType>
-struct FLPInStream {
-
+class FLPInStream {
+public:
 	template<typename... Args>
 	FLPInStream(Args&&... args) :
 		_stream(std::forward<Args>(args)...) {
+		read_headers();
+		++(*this);
 	}
 
-	void read_header() {
-		// read flp header
-		if(!_stream.read(&_file_header))
-			failed_read(_stream);
-		if(!check_chunkID(_file_header.header.ChunkID, "FLhd"))
-			throw std::runtime_error { "Not an FLP file!" };
+	FLPInStream(FLPInStream const&) = delete;
+	FLPInStream& operator=(FLPInStream const&) = delete;
 
-		// read data header
-		if(!_stream.read(&_data_header))
-			failed_read(_stream);
-		if(!check_chunkID(_data_header.ChunkID, "FLdt"))
-			throw std::runtime_error { "Invalid data header!" };
+	bool has_event() {
+		return _data_bytes_read < _data_header.Length;
 	}
 
-	FLPEvent const& operator*() const& {
+	FLPEvent* operator->() & {
+		return &_current_event;
+	}
+
+	FLPEvent& operator*() & {
 		return _current_event;
 	}
 
 	FLPInStream& operator++() {
-		uint8_t event_id = 0;
+		std::uint8_t event_id = 0;
 		if(!_stream.read(&event_id))
 			failed_read(_stream);
 
@@ -98,10 +97,6 @@ struct FLPInStream {
 		return *this;
 	}
 
-	bool has_event() {
-		return _data_bytes_read < _data_header.Length;
-	}
-
 	FLPFileHeader const& file_header() const& {
 		return _file_header;
 	}
@@ -111,6 +106,20 @@ struct FLPInStream {
 	}
 
 private:
+	void read_headers() {
+		// read flp header
+		if(!_stream.read(&_file_header))
+			failed_read(_stream);
+		if(!check_chunkID(_file_header.header.ChunkID, "FLhd"))
+			throw std::runtime_error { "Not an FLP file!" };
+
+		// read data header
+		if(!_stream.read(&_data_header))
+			failed_read(_stream);
+		if(!check_chunkID(_data_header.ChunkID, "FLdt"))
+			throw std::runtime_error { "Invalid data header!" };
+	}
+
 	[[noreturn]]
 	static void failed_read(StreamType const& stream) {
 		std::string errstr = stream.errmsg(stream.error());
@@ -119,18 +128,14 @@ private:
 
 	static bool check_chunkID(std::uint32_t id, char const (&p)[5]) noexcept {
 		assert(strlen(p) == 4);
-		std::uint32_t composit = p[0];
-		composit |= (p[1] << 8);
-		composit |= (p[2] << 16);
-		composit |= (p[3] << 24);
-		return id == composit;
+		return id == std::uint32_t(p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24);
 	};
 
-	StreamType _stream {};
+	FLPEvent _current_event {};
+	std::uint32_t _data_bytes_read = 0;
 	FLPFileHeader _file_header {};
 	FLPChunkHeader _data_header {};
-	std::uint32_t _data_bytes_read = 0;
-	FLPEvent _current_event {};
+	StreamType _stream {};
 };
 
 template<typename StreamT>
@@ -159,8 +164,6 @@ namespace detail {
 	void stream_fxrouting(Stream& stream, FLPEvent const& e) {
 		stream.key("data_type");
 		stream.value_str_noescape("fx_routing[]");
-		stream.key("data_size");
-		stream.value(e.var_size);
 		stream.key("data");
 		stream.begin_array();
 
@@ -183,7 +186,7 @@ namespace detail {
 	}
 
 	template<typename Stream>
-	void stream_pattern_note(Stream& stream, FLPEvent const& e) {
+	void stream_pattern_notes(Stream& stream, FLPEvent const& e) {
 		assert(e.var_size % sizeof(RawPatternNote) == 0);
 		stream.key("data_type");
 		stream.value_str_noescape("pattern_note[]");
@@ -229,6 +232,41 @@ namespace detail {
 			stream.value(note.mod_x);
 			stream.key("mod_y");
 			stream.value(note.mod_y);
+			stream.end_object();
+		}
+		stream.end_array();
+	}
+
+	template<typename Stream>
+	void stream_playlist_clips(Stream& stream, FLPEvent const& e) {
+		assert(e.var_size % sizeof(RawPlaylistClip) == 0);
+		stream.key("data_type");
+		stream.value_str_noescape("playlist_clip[]");
+		stream.key("data");
+		auto* clips = reinterpret_cast<RawPlaylistClip const*>(e.text_data.get());
+		int const n_clips = static_cast<int>(e.var_size / sizeof(RawPlaylistClip));
+		stream.begin_array();
+		for(int i = 0; i < n_clips; ++i) {
+			RawPlaylistClip const& clip = clips[i];
+			stream.begin_object();
+			stream.key("position");
+			stream.value(clip.position);
+			stream.key("flags");
+			stream.value(clip.flags);
+			stream.key("duration");
+			stream.value(clip.duration);
+			stream.key("lane_index");
+			stream.value(clip.lane_index);
+			stream.key("data");
+			stream.begin_array();
+			for(int data_i = 0; data_i < 10; ++data_i) {
+				stream.value(clip.data[data_i]);
+			}
+			stream.end_array();
+			stream.key("window_start");
+			stream.value(clip.window_start);
+			stream.key("window_end");
+			stream.value(clip.window_end);
 			stream.end_object();
 		}
 		stream.end_array();
@@ -365,7 +403,10 @@ void stream_flp_event(StreamT& stream, FLPEvent const& e) {
 			detail::stream_string<useWideStr>(stream, e);
 			break;
 		case FLPEventType::FLP_PatNoteRecChan:
-			detail::stream_pattern_note(stream, e);
+			detail::stream_pattern_notes(stream, e);
+			break;
+		case FLPEventType::FLP_PLRecChan:
+			detail::stream_playlist_clips(stream, e);
 			break;
 		case FLPEventType::FLP_FXRouting:
 			detail::stream_fxrouting(stream, e);

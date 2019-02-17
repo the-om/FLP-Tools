@@ -58,6 +58,18 @@ struct RawPatternNote {
 };
 
 static_assert(sizeof(RawPatternNote) == 24);
+
+
+struct RawPlaylistClip {
+	std::uint32_t position;
+	std::uint32_t flags;
+	std::uint32_t duration;
+	std::uint16_t lane_index; // (499 - lane_index) for FL 20
+	std::byte data[10];
+	std::uint32_t window_start; // if window_start and window_end are -1 no window is applied to the pattern
+	std::uint32_t window_end; // automation clips are different
+};
+
 #pragma pack(pop)
 
 }

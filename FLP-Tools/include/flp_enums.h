@@ -75,6 +75,8 @@ enum class FLPEventType : std::uint8_t {
 	FLP_TruncateClipNotes = 30,
 	FLP_EEAutoMode        = 31,
 	// TODO: event 32 is used in FL 12
+	// TODO: event 35 is used in FL 20
+	// TODO: event 37 is used in FL 20
 
 	// WORD sized (63..127)
 	FLP_Word           = 64,
@@ -145,6 +147,7 @@ enum class FLPEventType : std::uint8_t {
 	FLP_PluginIcon       = FLP_Int + 27,
 	FLP_FineTempo        = FLP_Int + 28,
 	// TODO: event 157 is used in FL 12
+	// TODO: event 159 is used in FL 20
 
 	// Variable size (192..255)
 	FLP_Undef                  = 192,           // +Length (VarLengthInt)

@@ -98,91 +98,74 @@ public:
 
 	void begin_object() {
 		int size_required = 1;
-		bool add_comma = false;
-		bool add_newline = false;
-		if(!m_agg_stack.empty()) {
-			StackEntry e = m_agg_stack.top();
-			if(e.type == AggregateType::Array) {
-				add_newline = true;
-				size_required += 1 + m_indent_level;
-				if(e.n_elems > 0) {
-					size_required += 1;
-					add_comma = true;
-				}
-			}
-		}
-		flush_if_necessary(size_required);
-		if(add_newline) {
-			if(add_comma) {
-				*m_position++ = ',';
-			}
-			*m_position++ = '\n';
-			indent();
-		}
+		prepare_write_value(size_required);
 		*m_position++ = '{';
-		m_agg_stack.push(StackEntry { AggregateType::Object, 0 });
+		m_agg_stack.push(StackEntry(AggregateType::Object));
 		m_indent_level += 1;
 	}
 
 	void end_object() {
+		assert(!m_agg_stack.empty());
 		m_indent_level -= 1;
-
 		auto size_required = 1;
-		if(m_agg_stack.top().n_elems > 0) {
+		bool const nonempty = m_agg_stack.top().nonempty();
+		if(nonempty) {
 			// newline and indent
 			size_required += 1 + m_indent_level;
 		}
 		flush_if_necessary(size_required);
-		if(m_agg_stack.top().n_elems > 0) {
+		if(nonempty) {
 			*m_position++ = '\n';
 			indent();
 		}
 		*m_position++ = '}';
 
 		m_agg_stack.pop();
-		if(!m_agg_stack.empty()) {
-			StackEntry& e = m_agg_stack.top();
-			++e.n_elems;
-		}
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
 	}
 
 	void begin_array() {
-		m_indent_level += 1;
-
-		flush_if_necessary(1);
-
+		prepare_write_value(1);
 		*m_position++ = '[';
-		m_agg_stack.push(StackEntry { AggregateType::Array, 0 });
+		m_agg_stack.push(StackEntry(AggregateType::Array));
+		m_indent_level += 1;
 	}
 
 	void end_array() {
+		assert(!m_agg_stack.empty());
 		m_indent_level -= 1;
 		int size_required = 1;
-		if(m_agg_stack.top().n_elems > 0) {
+
+		if(m_agg_stack.top().nonempty()) {
 			// newline and indent
 			size_required += 1 + m_indent_level;
 		}
 
 		flush_if_necessary(size_required);
 
-		if(m_agg_stack.top().n_elems > 0) {
+		if(m_agg_stack.top().nonempty()) {
 			*m_position++ = '\n';
 			indent();
 		}
 		*m_position++ = ']';
 
 		m_agg_stack.pop();
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
 	}
 
 	void key(std::string_view key) {
 		int const keylen = (int)key.length();
 		// space for newline, indentation, key, quotes, colon and space
 		auto required_size = 1 + m_indent_level + 1 + keylen + 1 + 1 + 1;
-		if(m_agg_stack.top().n_elems > 0) {
+		assert(!m_agg_stack.empty() && m_agg_stack.top().type() == AggregateType::Object);
+		bool const is_not_first_key = m_agg_stack.top().nonempty();
+		if(is_not_first_key) {
 			required_size += 1; // comma
 		}
 		flush_if_necessary(required_size);
-		if(m_agg_stack.top().n_elems > 0) {
+		if(is_not_first_key) {
 			*m_position++ = ',';
 		}
 		*m_position++ = '\n';
@@ -202,45 +185,50 @@ public:
 	void value_str_noescape(std::string_view value) {
 		int const vlen = (int)value.size();
 		int const size_required = vlen + 2;
+
 		if(size_required > buffer_size) {
+			prepare_write_value(1);
+			*m_position++ ='"';
 			flush();
-			char dquote = '"';
-			m_stream.write(&dquote, 1);
 			m_stream.write(value.data(), vlen);
-			m_stream.write(&dquote, 1);
+			*m_position++ = '"';
 		} else {
-			flush_if_necessary(size_required);
+			prepare_write_value(size_required);
 			*m_position++ = '"';
 			std::memcpy(m_position, value.data(), vlen);
 			m_position += vlen;
 			*m_position++ = '"';
 		}
-		++m_agg_stack.top().n_elems;
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
 	}
 
 	void value(std::byte bt) {
-		flush_if_necessary(2);
+		prepare_write_value(2);
 		auto value = std::uint8_t(bt);
 		auto result = std::to_chars(m_position, m_position + 2, value, 16);
 		m_position = result.ptr;
-		++m_agg_stack.top().n_elems;
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
 	}
 
 	void value(std::nullptr_t) {
-		flush_if_necessary(sizeof("null") - 1);
+		prepare_write_value(sizeof("null") - 1);
 		std::memcpy(m_position, "null", sizeof("null") - 1);
 		m_position += sizeof("null") - 1;
-		++m_agg_stack.top().n_elems;
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
 	}
 
 	template<typename T>
 	std::enable_if_t<std::is_arithmetic_v<T>> value(T value) {
 		// TODO: charconv
 		auto s = std::to_string(value);
-		flush_if_necessary((int)s.size());
+		prepare_write_value((int)s.size());
 		std::memcpy(m_position, s.data(), s.size());
 		m_position += s.size();
-		++m_agg_stack.top().n_elems;
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
 	}
 
 	void flush() {
@@ -254,6 +242,7 @@ private:
 	}
 
 	void flush_if_necessary(int required_size) {
+		assert(required_size <= buffer_size);
 		if(space_available() < required_size) {
 			flush();
 		}
@@ -265,14 +254,54 @@ private:
 		}
 	}
 
+	void prepare_write_value(int size_required) {
+		bool add_comma = false;
+		bool add_newline = false;
+		if(!m_agg_stack.empty()) {
+			StackEntry e = m_agg_stack.top();
+			if(e.type() == AggregateType::Array) {
+				add_newline = true;
+				size_required += 1 + m_indent_level;
+				if(e.nonempty()) {
+					size_required += 1;
+					add_comma = true;
+				}
+			}
+		}
+		flush_if_necessary(size_required);
+		if(add_newline) {
+			if(add_comma) {
+				*m_position++ = ',';
+			}
+			*m_position++ = '\n';
+			indent();
+		}
+	}
+
 	enum class AggregateType : std::uint8_t {
 		Array,
 		Object
 	};
 
 	struct StackEntry {
-		AggregateType type;
-		int n_elems;
+		StackEntry(AggregateType type) : 
+			data { static_cast<std::uint8_t>(type) } {
+		}
+
+		AggregateType type() const {
+			return static_cast<AggregateType>(data & 0x7F);
+		}
+
+		void set_nonempty() {
+			data |= 0x80;
+		}
+
+		bool nonempty() const {
+			return (data & 0x80) != 0;
+		}
+
+	private:
+		std::uint8_t data;
 	};
 
 	static constexpr int buffer_size = 128;

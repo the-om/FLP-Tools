@@ -47,8 +47,6 @@ static bool flp_to_json(ProgramOptions const& program_args) {
 	}
 	Om::JSONOutStream<Om::CFile> json_stream(outfile);
 
-	flp.read_header();
-
 	json_stream.begin_object();
 	json_stream.key("header");
 	stream_flp_header(json_stream, flp.file_header());
