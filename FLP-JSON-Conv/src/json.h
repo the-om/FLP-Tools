@@ -97,68 +97,31 @@ public:
 	}
 
 	void begin_object() {
-		int size_required = 1;
-		prepare_write_value(size_required);
+		prepare_write_value(1);
 		*m_position++ = '{';
 		m_agg_stack.push(StackEntry(AggregateType::Object));
-		m_indent_level += 1;
 	}
 
 	void end_object() {
-		assert(!m_agg_stack.empty());
-		m_indent_level -= 1;
-		auto size_required = 1;
-		bool const nonempty = m_agg_stack.top().nonempty();
-		if(nonempty) {
-			// newline and indent
-			size_required += 1 + m_indent_level;
-		}
-		flush_if_necessary(size_required);
-		if(nonempty) {
-			*m_position++ = '\n';
-			indent();
-		}
-		*m_position++ = '}';
-
-		m_agg_stack.pop();
-		if(!m_agg_stack.empty())
-			m_agg_stack.top().set_nonempty();
+		assert(!m_agg_stack.empty() && m_agg_stack.top().type() == AggregateType::Object);
+		end_aggregate('}');
 	}
 
 	void begin_array() {
 		prepare_write_value(1);
 		*m_position++ = '[';
 		m_agg_stack.push(StackEntry(AggregateType::Array));
-		m_indent_level += 1;
 	}
 
 	void end_array() {
-		assert(!m_agg_stack.empty());
-		m_indent_level -= 1;
-		int size_required = 1;
-
-		if(m_agg_stack.top().nonempty()) {
-			// newline and indent
-			size_required += 1 + m_indent_level;
-		}
-
-		flush_if_necessary(size_required);
-
-		if(m_agg_stack.top().nonempty()) {
-			*m_position++ = '\n';
-			indent();
-		}
-		*m_position++ = ']';
-
-		m_agg_stack.pop();
-		if(!m_agg_stack.empty())
-			m_agg_stack.top().set_nonempty();
+		assert(!m_agg_stack.empty() && m_agg_stack.top().type() == AggregateType::Array);
+		end_aggregate(']');
 	}
 
 	void key(std::string_view key) {
-		int const keylen = (int)key.length();
+		int const keylen = static_cast<int>(key.length());
 		// space for newline, indentation, key, quotes, colon and space
-		auto required_size = 1 + m_indent_level + 1 + keylen + 1 + 1 + 1;
+		int required_size = 1 + int(m_agg_stack.size()) + 1 + keylen + 1 + 1 + 1;
 		assert(!m_agg_stack.empty() && m_agg_stack.top().type() == AggregateType::Object);
 		bool const is_not_first_key = m_agg_stack.top().nonempty();
 		if(is_not_first_key) {
@@ -183,7 +146,7 @@ public:
 	}
 
 	void value_str_noescape(std::string_view value) {
-		int const vlen = (int)value.size();
+		int const vlen = static_cast<int>(value.size());
 		int const size_required = vlen + 2;
 
 		if(size_required > buffer_size) {
@@ -204,10 +167,21 @@ public:
 	}
 
 	void value(std::byte bt) {
-		prepare_write_value(2);
-		auto value = std::uint8_t(bt);
-		auto result = std::to_chars(m_position, m_position + 2, value, 16);
+		prepare_write_value(3);
+		auto value = static_cast<unsigned char>(bt);
+		auto result = std::to_chars(m_position, m_position + 3, value, 10);
 		m_position = result.ptr;
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
+	}
+	
+	template<typename T>
+	std::enable_if_t<std::is_arithmetic_v<T>> value(T value) {
+		// TODO: charconv
+		auto s = std::to_string(value);
+		prepare_write_value(static_cast<int>(s.size()));
+		std::memcpy(m_position, s.data(), s.size());
+		m_position += s.size();
 		if(!m_agg_stack.empty())
 			m_agg_stack.top().set_nonempty();
 	}
@@ -220,25 +194,35 @@ public:
 			m_agg_stack.top().set_nonempty();
 	}
 
-	template<typename T>
-	std::enable_if_t<std::is_arithmetic_v<T>> value(T value) {
-		// TODO: charconv
-		auto s = std::to_string(value);
-		prepare_write_value((int)s.size());
-		std::memcpy(m_position, s.data(), s.size());
-		m_position += s.size();
-		if(!m_agg_stack.empty())
-			m_agg_stack.top().set_nonempty();
-	}
-
 	void flush() {
 		m_stream.write(&m_buffer[0], m_position - &m_buffer[0]);
 		m_position = &m_buffer[0];
 	}
 
 private:
+	void end_aggregate(char term_symbol) {
+		bool const has_elements = m_agg_stack.top().nonempty();
+		m_agg_stack.pop();
+
+		int size_required = 1;
+		if(has_elements) {
+			// newline and indent
+			size_required += 1 + int(m_agg_stack.size());
+		}
+		flush_if_necessary(size_required);
+
+		if(has_elements) {
+			*m_position++ = '\n';
+			indent();
+		}
+		*m_position++ = term_symbol;
+
+		if(!m_agg_stack.empty())
+			m_agg_stack.top().set_nonempty();
+	}
+
 	int space_available() {
-		return (int)(m_buffer + buffer_size - m_position);
+		return static_cast<int>((m_buffer + buffer_size) - m_position);
 	}
 
 	void flush_if_necessary(int required_size) {
@@ -249,7 +233,7 @@ private:
 	}
 
 	void indent() {
-		for(int i = 0; i < m_indent_level; ++i) {
+		for(int i = 0; i < int(m_agg_stack.size()); ++i) {
 			*m_position++ = '\t';
 		}
 	}
@@ -258,10 +242,10 @@ private:
 		bool add_comma = false;
 		bool add_newline = false;
 		if(!m_agg_stack.empty()) {
-			StackEntry e = m_agg_stack.top();
+			StackEntry const e = m_agg_stack.top();
 			if(e.type() == AggregateType::Array) {
 				add_newline = true;
-				size_required += 1 + m_indent_level;
+				size_required += 1 + int(m_agg_stack.size());
 				if(e.nonempty()) {
 					size_required += 1;
 					add_comma = true;
@@ -292,12 +276,12 @@ private:
 			return static_cast<AggregateType>(data & 0x7F);
 		}
 
-		void set_nonempty() {
-			data |= 0x80;
-		}
-
 		bool nonempty() const {
 			return (data & 0x80) != 0;
+		}
+
+		void set_nonempty() {
+			data |= 0x80;
 		}
 
 	private:
@@ -309,7 +293,6 @@ private:
 	char m_buffer[buffer_size];
 	char* m_position;
 	std::stack<StackEntry, std::vector<StackEntry>> m_agg_stack;
-	int m_indent_level = 0;
 	StreamT& m_stream;
 };
 

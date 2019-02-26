@@ -151,14 +151,6 @@ void stream_flp_header(StreamT& stream, FLPFileHeader const& header) {
 }
 
 namespace detail {
-	inline char get_nibble_char(std::byte nibble) {
-		auto nbval = static_cast<unsigned char>(nibble);
-		if(nbval < 0xA) {
-			return nbval + '0';
-		} else {
-			return nbval - 0xA + 'A';
-		}
-	}
 
 	template<typename Stream>
 	void stream_fxrouting(Stream& stream, FLPEvent const& e) {
@@ -187,15 +179,15 @@ namespace detail {
 
 	template<typename Stream>
 	void stream_pattern_notes(Stream& stream, FLPEvent const& e) {
-		assert(e.var_size % sizeof(RawPatternNote) == 0);
+		assert(e.var_size % sizeof(FLPPatternNoteRecord) == 0);
 		stream.key("data_type");
 		stream.value_str_noescape("pattern_note[]");
 		stream.key("data");
-		auto* notes = reinterpret_cast<RawPatternNote const*>(e.text_data.get());
-		int const n_notes = static_cast<int>(e.var_size / sizeof(RawPatternNote));
+		auto* notes = reinterpret_cast<FLPPatternNoteRecord const*>(e.text_data.get());
+		int const n_notes = static_cast<int>(e.var_size / sizeof(FLPPatternNoteRecord));
 		stream.begin_array();
 		for(int i = 0; i < n_notes; ++i) {
-			RawPatternNote const& note = notes[i];
+			FLPPatternNoteRecord const& note = notes[i];
 			stream.begin_object();
 			stream.key("position");
 			stream.value(note.position);
@@ -239,28 +231,40 @@ namespace detail {
 
 	template<typename Stream>
 	void stream_playlist_clips(Stream& stream, FLPEvent const& e) {
-		assert(e.var_size % sizeof(RawPlaylistClip) == 0);
+		assert(e.var_size % sizeof(FLPPlaylistClipRecord) == 0);
 		stream.key("data_type");
 		stream.value_str_noescape("playlist_clip[]");
 		stream.key("data");
-		auto* clips = reinterpret_cast<RawPlaylistClip const*>(e.text_data.get());
-		int const n_clips = static_cast<int>(e.var_size / sizeof(RawPlaylistClip));
+		auto* clips = reinterpret_cast<FLPPlaylistClipRecord const*>(e.text_data.get());
+		int const n_clips = static_cast<int>(e.var_size / sizeof(FLPPlaylistClipRecord));
 		stream.begin_array();
 		for(int i = 0; i < n_clips; ++i) {
-			RawPlaylistClip const& clip = clips[i];
+			FLPPlaylistClipRecord const& clip = clips[i];
 			stream.begin_object();
 			stream.key("position");
 			stream.value(clip.position);
-			stream.key("flags");
-			stream.value(clip.flags);
+			stream.key("data0");
+			stream.value(clip.data0);
+			stream.key("source_index");
+			stream.value(clip.source_index);
 			stream.key("duration");
 			stream.value(clip.duration);
 			stream.key("lane_index");
 			stream.value(clip.lane_index);
-			stream.key("data");
+			stream.key("group");
+			stream.value(clip.group);
+			stream.key("data1");
 			stream.begin_array();
-			for(int data_i = 0; data_i < 10; ++data_i) {
-				stream.value(clip.data[data_i]);
+			for(int data_i = 0; data_i < std::size(clip.data1); ++data_i) {
+				stream.value(clip.data1[data_i]);
+			}
+			stream.end_array();
+			stream.key("flags");
+			stream.value(clip.flags);
+			stream.key("data2");
+			stream.begin_array();
+			for(int data_i = 0; data_i < std::size(clip.data2); ++data_i) {
+				stream.value(clip.data2[data_i]);
 			}
 			stream.end_array();
 			stream.key("window_start");
@@ -270,6 +274,11 @@ namespace detail {
 			stream.end_object();
 		}
 		stream.end_array();
+	}
+
+	constexpr inline char get_nibble_char(std::byte nibble) noexcept {
+		auto nbval = static_cast<unsigned char>(nibble);
+		return (nbval < 0xA) ? nbval + '0' : nbval - 0xA + 'A';
 	}
 
 	template<typename Stream>
@@ -287,29 +296,31 @@ namespace detail {
 			return;
 		}
 
-		char local_buf[4415];
+		char local_buf[4457];
+		//char local_buf[4016];
 		std::unique_ptr<char> large_buf;
 		char* buf;
-		size_t const required_bufsz = (e.var_size - 1) * 3 + 2;
+		std::size_t const required_bufsz = (e.var_size - 1) * 3 + 2;
 		if(required_bufsz > std::size(local_buf)) {
 			large_buf.reset(new char[required_bufsz]);
 			buf = large_buf.get();
+			//std::printf("used large buffer: %s, %zu bytes\n", flp_event_name(e.type), required_bufsz);
 		} else {
 			buf = local_buf;
 		}
 		std::byte const* data = e.text_data.get();
-		std::byte bt;
+		std::byte b;
 		char* p = buf;
 		for(auto i = 0U; i < e.var_size - 1; i++) {
-			bt = data[i];
-			p[0] = detail::get_nibble_char((bt & std::byte { 0xF0 }) >> 4);
-			p[1] = detail::get_nibble_char(bt & std::byte { 0x0F });
+			b = data[i];
+			p[0] = detail::get_nibble_char(b >> 4);
+			p[1] = detail::get_nibble_char(b & std::byte { 0x0F });
 			p[2] = ' ';
 			p += 3;
 		}
-		bt = data[e.var_size - 1];
-		p[0] = detail::get_nibble_char((bt & std::byte { 0xF0 }) >> 4);
-		p[1] = detail::get_nibble_char(bt & std::byte { 0x0F });
+		b = data[e.var_size - 1];
+		p[0] = detail::get_nibble_char(b >> 4);
+		p[1] = detail::get_nibble_char(b & std::byte { 0x0F });
 
 		stream.value_str_noescape(std::string_view(buf, required_bufsz));
 	}

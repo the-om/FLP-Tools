@@ -66,12 +66,13 @@ static bool flp_to_json(ProgramOptions const& program_args) {
 		}
 		++flp;
 	}
-	if(is_unicode)
+	if(is_unicode) {
 		for(; flp.has_event(); ++flp)
 			stream_flp_event<true>(json_stream, *flp);
-	else
+	} else {
 		for(; flp.has_event(); ++flp)
 			stream_flp_event<false>(json_stream, *flp);
+	}
 
 	json_stream.end_array();
 	json_stream.end_object();
@@ -97,8 +98,8 @@ static ProgramOptions get_program_options(int argc, wchar_t* argv[]) {
 	Om::parse_args<wchar_t>(argc, argv, arg_handlers);
 
 	if(program_args.mode == Mode::not_set) {
-		auto input_ext = program_args.input_path.extension();
-		if(input_ext == L"json") {
+		auto const input_file_extension = program_args.input_path.extension();
+		if(input_file_extension == L"json") {
 			program_args.mode = Mode::json_to_flp;
 		} else {
 			program_args.mode = Mode::flp_to_json;
